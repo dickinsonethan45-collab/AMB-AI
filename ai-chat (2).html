@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ember — AI Chat</title>
+<style>
+  :root {
+    --bg: #f6f2ea;
+    --panel: #ffffff;
+    --ink: #2b2620;
+    --ink-soft: #6b6255;
+    --accent: #c96a43;
+    --accent-dark: #a8532f;
+    --line: #e7ddcc;
+    --bubble-user: #eee4d3;
+    --bubble-ai: #ffffff;
+    --sidebar: #efe7d8;
+    --radius: 14px;
+    --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    padding: 18px 14px;
+    flex-shrink: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 18px 8px;
+  }
+
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #e2915f);
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .new-chat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color .15s ease;
+  }
+  .new-chat:hover { border-color: var(--accent); }
+
+  .history-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 22px 8px 8px 8px;
+  }
+
+  .history-item {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    padding: 8px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
+  }
+
+  /* Main */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .topbar {
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 0 12px 0;
+  }
+
+  .chat-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  /* Empty state */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding-top: 12vh;
+  }
+  .empty-state .ember-glyph {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), #e2915f);
+    margin-bottom: 6px;
+  }
+  .empty-state h1 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 500;
+  }
+  .empty-state p {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    max-width: 380px;
+  }
+
+  .suggestions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 18px;
+    max-width: 520px;
+  }
+  .chip {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 9px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+  /* Messages */
+  .msg-row { display: flex; gap: 12px; }
+  .msg-row.user { justify-content: flex-end; }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), #e2915f);
+    margin-top: 2px;
+  }
+
+  .bubble {
+    max-width: 72%;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg-row.user .bubble {
+    background: var(--bubble-user);
+    border-top-right-radius: 4px;
+  }
+  .msg-row.ai .bubble {
+    background: var(--bubble-ai);
+    border: 1px solid var(--line);
+    border-top-left-radius: 4px;
+  }
+
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 6px 2px;
+  }
+  .typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-soft);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* Input */
+  .input-wrap {
+    padding: 14px 24px 22px 24px;
+    flex-shrink: 0;
+  }
+  .input-inner {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .input-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 10px 10px 10px 18px;
+    box-shadow: 0 2px 10px rgba(43, 38, 32, 0.04);
+  }
+  .input-box textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    max-height: 160px;
+    background: transparent;
+    color: var(--ink);
+  }
+  .input-box textarea::placeholder { color: #a39a89; }
+
+  .send-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s ease, opacity .15s ease;
+  }
+  .send-btn:hover { background: var(--accent-dark); }
+  .send-btn:disabled { opacity: 0.35; cursor: default; }
+
+  .disclaimer {
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+  }
+
+  .chat-area::-webkit-scrollbar { width: 8px; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-name">Ember</div>
+  </div>
+  <div class="new-chat" onclick="startNewChat()">+ New chat</div>
+  <div class="history-label">Recent</div>
+  <div class="history-item" id="historyLabel">Nothing yet</div>
+</div>
+
+<div class="main">
+  <div class="topbar">Ember</div>
+
+  <div class="chat-area" id="chatArea">
+    <div class="empty-state" id="emptyState">
+      <div class="ember-glyph"></div>
+      <h1>What's on your mind?</h1>
+      <p>Ask anything — I'm powered by Claude under the hood.</p>
+      <div class="suggestions">
+        <div class="chip" onclick="fillPrompt('Explain quicksort like I\'m new to algorithms')">Explain quicksort simply</div>
+        <div class="chip" onclick="fillPrompt('Give me 5 ideas for a weekend project')">Weekend project ideas</div>
+        <div class="chip" onclick="fillPrompt('Help me write a polite follow-up email')">Draft a follow-up email</div>
+      </div>
+    </div>
+    <div class="chat-inner" id="chatInner" style="display:none;"></div>
+  </div>
+
+  <div class="input-wrap">
+    <div class="input-inner">
+      <div class="input-box">
+        <textarea id="promptInput" rows="1" placeholder="Message Ember..." onkeydown="handleKeydown(event)" oninput="autoGrow(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
+      <div class="disclaimer">Ember can make mistakes. Check important info.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Set this to your deployed Railway backend URL (see ember-backend/README.md)
+// Example: "https://ember-backend-production.up.railway.app"
+const API_BASE_URL = "https://YOUR-RAILWAY-URL-HERE";
+
+let messages = [];
+let isStreaming = false;
+
+const chatArea = document.getElementById('chatArea');
+const chatInner = document.getElementById('chatInner');
+const emptyState = document.getElementById('emptyState');
+const promptInput = document.getElementById('promptInput');
+const sendBtn = document.getElementById('sendBtn');
+const historyLabel = document.getElementById('historyLabel');
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function fillPrompt(text) {
+  promptInput.value = text;
+  autoGrow(promptInput);
+  promptInput.focus();
+}
+
+function startNewChat() {
+  messages = [];
+  chatInner.innerHTML = '';
+  chatInner.style.display = 'none';
+  emptyState.style.display = 'flex';
+}
+
+function renderMessage(role, text) {
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + role;
+
+  if (role === 'ai') {
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    row.appendChild(avatar);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  row.appendChild(bubble);
+
+  chatInner.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return bubble;
+}
+
+function renderTyping() {
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.id = 'typingRow';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  row.appendChild(avatar);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble typing';
+  bubble.innerHTML = '<span></span><span></span><span></span>';
+  row.appendChild(bubble);
+
+  chatInner.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function removeTyping() {
+  const row = document.getElementById('typingRow');
+  if (row) row.remove();
+}
+
+async function sendMessage() {
+  const text = promptInput.value.trim();
+  if (!text || isStreaming) return;
+
+  if (emptyState.style.display !== 'none') {
+    emptyState.style.display = 'none';
+    chatInner.style.display = 'flex';
+    chatInner.style.flexDirection = 'column';
+    chatInner.style.gap = '22px';
+    historyLabel.textContent = text.slice(0, 40);
+  }
+
+  messages.push({ role: 'user', content: text });
+  renderMessage('user', text);
+
+  promptInput.value = '';
+  promptInput.style.height = 'auto';
+  isStreaming = true;
+  sendBtn.disabled = true;
+  renderTyping();
+
+  try {
+    const response = await fetch(API_BASE_URL + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: messages })
+    });
+
+    const data = await response.json();
+    removeTyping();
+
+    if (!response.ok) {
+      const errMsg = (data && data.error && data.error.message) ? data.error.message : JSON.stringify(data);
+      throw new Error('API error (' + response.status + '): ' + errMsg);
+    }
+
+    let replyText = "Sorry, I couldn't generate a response.";
+    if (data && data.content) {
+      replyText = data.content
+        .filter(block => block.type === 'text')
+        .map(block => block.text)
+        .join('\n');
+    }
+
+    messages.push({ role: 'assistant', content: replyText });
+    renderMessage('ai', replyText);
+  } catch (err) {
+    removeTyping();
+    renderMessage('ai', 'Error: ' + err.message);
+    console.error(err);
+  } finally {
+    isStreaming = false;
+    sendBtn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>
